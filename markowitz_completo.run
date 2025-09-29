@@ -1,68 +1,42 @@
-# ===================================================================
-# SCRIPT MESTRE PARA EXECUÇÃO DE TESTES AUTOMATIZADOS
-# ===================================================================
-
-# --- 1. CONFIGURAÇÃO INICIAL ---
 reset;
 
 model markowitz_completo.mod;
 data markowitz_completo.dat;
 
 option solver gurobi;
-# Desativa o log detalhado do solver para manter a saída limpa durante os laços
-option gurobi_options 'outlev=0';
+=option gurobi_options 'outlev=0';
 
-
-# --- 2. DEFINIÇÃO DOS CENÁRIOS DE TESTE ---
-
-# Cenários para o número de ativos (m)
 set CENARIOS_M := {10, 15, 20, 25};
 set CENARIOS_W_MAX := {0.10, 0.20, 0.35};
 
-# Cenários para o retorno alvo (R_target) - de 12% a 28% em passos de 2%
+# R_target de 12% a 28% em passos de 2%
 set CENARIOS_R_TARGET := setof {r in 12..28 by 2} (r / 100);
-
-# --- 3. ESTRUTURA PARA ARMAZENAR OS RESULTADOS ---
-
-# Declara o parâmetro do contador sem um valor fixo
 param num_testes symbolic;
 
-# Tabela para guardar os resultados de cada execução
+# tabela com os resultados de cada execução
 param resultados {1..card(CENARIOS_M)*card(CENARIOS_W_MAX)*card(CENARIOS_R_TARGET),
                   {'m', 'W_max', 'R_target', 'Risco', 'Retorno', 'Status'}};
 
-# Inicializa o contador com o comando 'let' antes do loop começar
 let num_testes := 0;
 
-# --- 4. LAÇOS DE EXECUÇÃO (LOOPS) ---
-
-# Itera sobre cada cenário definido
 for {m_teste in CENARIOS_M} {
     for {w_max_teste in CENARIOS_W_MAX} {
         for {r_target_teste in CENARIOS_R_TARGET} {
 
-            # Incrementa o contador do teste
             let num_testes := num_testes + 1;
-
-            # Atualiza os parâmetros do modelo para a iteração atual
             let m := m_teste;
             let W_max := w_max_teste;
             let R_target := r_target_teste;
 
-            # Imprime o status do teste atual no console
             printf ">> Rodando Teste %d: m=%d, W_max=%.2f, R_target=%.2f...\n",
                    num_testes, m_teste, w_max_teste, r_target_teste;
 
-            # Resolve o modelo
             solve;
 
-            # Guarda os parâmetros de entrada na tabela de resultados
             let resultados[num_testes, 'm'] := m_teste;
             let resultados[num_testes, 'W_max'] := w_max_teste;
             let resultados[num_testes, 'R_target'] := r_target_teste;
 
-            # Guarda os resultados da otimização
-            # Se a solução for ótima, guarda o risco e retorno. Senão, guarda -1.
             if solve_result = 'solved' then {
                 let resultados[num_testes, 'Risco'] := sqrt(Risco_Portfolio);
                 let resultados[num_testes, 'Retorno'] := sum {i in ATIVOS} mu[i] * w[i];
@@ -76,15 +50,11 @@ for {m_teste in CENARIOS_M} {
     }
 }
 
-# --- 5. EXIBIÇÃO E SALVAMENTO DOS RESULTADOS FINAIS ---
 
 # Exibe a tabela de resultados completa no console do AMPL
 printf "\n\n================================================================================\n";
-printf "                      RESULTADOS COMPLETOS DOS TESTES\n";
-printf "================================================================================\n";
 display resultados;
 
-# Salva os resultados em um arquivo CSV para análise posterior (ex: no Excel, Python)
 printf "Salvando resultados em 'resultados_testes.csv'...\n";
 printf "Teste,m,W_max,R_target,Risco,Retorno,Status\n" > resultados_testes.csv;
 for {t in 1..num_testes} {
@@ -93,4 +63,5 @@ for {t in 1..num_testes} {
            resultados[t,'Risco'], resultados[t,'Retorno'], resultados[t,'Status']
            >> resultados_testes.csv;
 }
-printf "Resultados salvos com sucesso!\n";
+
+printf "Resultados salvos com sucesso\n";
